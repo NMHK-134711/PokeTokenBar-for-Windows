@@ -57,7 +57,7 @@ the current 5-hour block, 7- and 30-day rolling totals, and a burn-rate forecast
 | Surface | What's on it |
 |---|---|
 | **Tray icon** | Animated Gen-V sprite; hover for today's tokens, cost, and window % |
-| **Floating pet** | Optional always-on-top companion with the token count under it — drag anywhere, click to open the window |
+| **Floating pet** | Optional always-on-top companion with the token count under it — drag anywhere, hover for detail, click to open the window, right-click for a menu, and it pipes up when something happens |
 | **Home** | Companion, growth bar, today's spend, 5-hour and weekly meters, burn rate |
 | **Pokédex** | Every species you've owned, plus a catch log of everything you've raised |
 | **Pin a favourite** | Click any owned species to pin it to the tray icon and desktop pet |
@@ -65,6 +65,16 @@ the current 5-hour block, 7- and 30-day rolling totals, and a burn-rate forecast
 
 Shiny hatches (~1 in 256, better with Shiny Charms) keep their colours through
 every evolution.
+
+**The floating pet is interactive.** Hovering shows today's tokens and cost, the
+5-hour window with its countdown, the weekly figure, and what you're raising.
+Right-click for open / refresh / unpin / hide / quit. Hatches, evolutions, and a
+filled 5-hour window arrive as a speech bubble above it.
+
+**Reset countdowns** sit in the meters — `100% (217.2M · 2h 9m left)`. For Codex
+the reset instant is the one it reports itself; for Claude Code it is the end of
+the current 5-hour block. The weekly figure for Claude Code is a rolling 7 days
+with no reset instant, so it shows no countdown.
 
 **Pinning.** Clicking a species in the Pokédex pins it to the tray icon and the
 desktop pet, so those stop changing at every hatch and evolution. The companion

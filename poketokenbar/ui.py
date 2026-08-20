@@ -8,6 +8,7 @@ an optional always-on-top floating pet that shows the sprite plus today's count.
 from __future__ import annotations
 
 import tkinter as tk
+from datetime import datetime, timezone
 from tkinter import ttk
 
 from PIL import ImageTk
@@ -37,6 +38,22 @@ DEX_PER_PAGE = DEX_COLS * DEX_ROWS      # 24, matching the original
 DEX_SPRITE = 52
 LOG_SPRITE = 44
 ITEM_ICON = 34
+
+
+def _left(until) -> str | None:
+    """How long until `until`, as a short human string."""
+    if until is None:
+        return None
+    secs = (until - datetime.now(timezone.utc)).total_seconds()
+    if secs <= 0:
+        return t("left.now")
+    days, rem = divmod(int(secs), 86400)
+    hours, mins = divmod(rem // 60, 60)
+    if days:
+        return t("left.d", d=days, h=hours)
+    if hours:
+        return t("left.hm", h=hours, m=mins)
+    return t("left.m", m=max(1, mins))
 
 
 def _matte(img, threshold: int = 128):
@@ -158,6 +175,7 @@ class MainWindow(tk.Toplevel):
         self._build_home()
         self._build_settings()
         self.withdraw()
+        self._tick_countdown()
 
     def _style(self) -> None:
         st = ttk.Style(self)
@@ -402,14 +420,8 @@ class MainWindow(tk.Toplevel):
             else t("home.today.nocost"))
 
         self.block_bar["value"] = st.block_percent * 100
-        ends = st.block_ends.astimezone().strftime("%H:%M") if st.block_ends else "-"
-        self.block_val.configure(text=t(
-            "meter.block.val", pct=f"{st.block_percent * 100:.0f}",
-            tokens=compact(st.block_tokens), ends=ends))
         self.week_bar["value"] = st.week_percent * 100
-        self.week_val.configure(text=t(
-            "meter.week.val", pct=f"{st.week_percent * 100:.0f}",
-            tokens=compact(st.week_tokens)))
+        self._paint_meters(st)
         # Say plainly whether the percentages are the agent's own numbers.
         self.meter_note.configure(
             text=t("meter.official") if st.official else t("meter.budget"))
@@ -431,6 +443,26 @@ class MainWindow(tk.Toplevel):
         self._render_pokedex()
         self._render_bag()
         self._render_shop()
+
+    def _paint_meters(self, st) -> None:
+        """Meter captions, including a live countdown to the next reset."""
+        for value, pct, tokens, until in (
+            (self.block_val, st.block_percent, st.block_tokens, st.block_ends),
+            (self.week_val, st.week_percent, st.week_tokens, st.week_ends),
+        ):
+            left = _left(until)
+            key = "meter.block.val2" if left else "meter.week.val"
+            value.configure(text=t(key, pct=f"{pct * 100:.0f}",
+                                   tokens=compact(tokens), left=left or ""))
+
+    def _tick_countdown(self) -> None:
+        """Keep the countdowns honest between the 3-minute data refreshes."""
+        if self.app.ready and not self.app.error:
+            try:
+                self._paint_meters(self.app.snapshot.scope(self._scope))
+            except Exception:
+                pass
+        self.after(20_000, self._tick_countdown)
 
     def _render_scope_chips(self, snap) -> None:
         """One chip per detected agent, plus a combined view.
@@ -823,13 +855,43 @@ class MainWindow(tk.Toplevel):
                 side="right", padx=10, pady=8)
 
 
+class _Bubble(tk.Toplevel):
+    """A small popup anchored to the pet: hover details, or an alert."""
+
+    def __init__(self, master, text: str, accent: bool = False) -> None:
+        super().__init__(master)
+        self.overrideredirect(True)
+        self.attributes("-topmost", True)
+        border = ACCENT if accent else "#3a3e4a"
+        frame = tk.Frame(self, bg=border)
+        frame.pack()
+        tk.Label(
+            frame, text=text, bg=BG, fg=ACCENT if accent else FG,
+            font=("Segoe UI", 9, "bold" if accent else "normal"),
+            justify="left", anchor="w", padx=10, pady=6,
+        ).pack(padx=1, pady=1)
+
+    def place_above(self, widget) -> None:
+        """Sit just above the pet, nudged on screen if it would overflow."""
+        self.update_idletasks()
+        x = widget.winfo_rootx() + (widget.winfo_width() - self.winfo_reqwidth()) // 2
+        y = widget.winfo_rooty() - self.winfo_reqheight() - 6
+        if y < 0:                       # no room above: drop below instead
+            y = widget.winfo_rooty() + widget.winfo_height() + 6
+        x = max(0, min(x, self.winfo_screenwidth() - self.winfo_reqwidth()))
+        self.geometry(f"+{x}+{y}")
+
+
 class FloatingPet(tk.Toplevel):
     """Frameless always-on-top companion with today's count underneath."""
 
-    def __init__(self, master, app, on_click) -> None:
+    def __init__(self, master, app, on_click, on_open_settings=None,
+                 on_quit=None) -> None:
         super().__init__(master)
         self.app = app
         self.on_click = on_click
+        self.on_open_settings = on_open_settings
+        self.on_quit = on_quit
         self.overrideredirect(True)
         self.attributes("-topmost", True)
         self.configure(bg="#010101")
@@ -845,14 +907,25 @@ class FloatingPet(tk.Toplevel):
         self.caption.pack()
 
         self._drag = (0, 0)
+        self._moved = False
+        self._hover: _Bubble | None = None
+        self._alert: _Bubble | None = None
+        self._alert_job = None
+        self._hover_job = None
+
         for widget in (self, self.sprite, self.caption):
             widget.bind("<Button-1>", self._press)
             widget.bind("<B1-Motion>", self._move)
             widget.bind("<ButtonRelease-1>", self._release)
+            widget.bind("<Button-3>", self._menu)
+            widget.bind("<Enter>", self._hover_in)
+            widget.bind("<Leave>", self._hover_out)
 
-        self._moved = False
+        self._build_menu()
         self.update_idletasks()
         self._restore_position()
+
+    # ---- placement -------------------------------------------------
 
     def _restore_position(self) -> None:
         """Put the pet back where it was dragged, or in a default corner."""
@@ -869,15 +942,20 @@ class FloatingPet(tk.Toplevel):
         y = max(0, min(y, sh - h))
         self.geometry(f"+{x}+{y}")
 
+    # ---- pointer ---------------------------------------------------
+
     def _press(self, event) -> None:
         self._drag = (event.x_root - self.winfo_x(), event.y_root - self.winfo_y())
         self._moved = False
+        self._close_hover()
 
     def _move(self, event) -> None:
         self._moved = True
         x = event.x_root - self._drag[0]
         y = event.y_root - self._drag[1]
         self.geometry(f"+{x}+{y}")
+        if self._alert is not None:
+            self._alert.place_above(self)
 
     def _release(self, event) -> None:
         if not self._moved:
@@ -887,6 +965,130 @@ class FloatingPet(tk.Toplevel):
         cfg.pet_x, cfg.pet_y = self.winfo_x(), self.winfo_y()
         cfg.save(self.app.config_path)
 
+    # ---- hover readout ---------------------------------------------
+
+    def _hover_in(self, _event=None) -> None:
+        if self._hover_job:
+            self.after_cancel(self._hover_job)
+        self._hover_job = self.after(350, self._show_hover)
+
+    def _hover_out(self, _event=None) -> None:
+        if self._hover_job:
+            self.after_cancel(self._hover_job)
+            self._hover_job = None
+        self._close_hover()
+
+    def _show_hover(self) -> None:
+        self._hover_job = None
+        self._close_hover()
+        if not self.app.ready:
+            return
+        try:
+            self._hover = _Bubble(self, self._hover_text())
+            self._hover.place_above(self)
+        except tk.TclError:
+            self._hover = None
+
+    def _hover_text(self) -> str:
+        app = self.app
+        st = app.snapshot.combined
+        lines = [t("pet.today", tokens=compact(st.today_tokens),
+                   cost=f"{st.today_cost:,.2f}")]
+        lines.append(t("pet.block", pct=f"{st.block_percent * 100:.0f}",
+                       left=_left(st.block_ends) or "-"))
+        lines.append(t("pet.week", pct=f"{st.week_percent * 100:.0f}"))
+
+        species_id, shiny = app.display_sprite()
+        c = app.game.companion
+        if species_id is None:
+            who = t("egg.name")
+        else:
+            sp = app.dex.species.get(species_id)
+            who = (sp.name(app.config.language) if sp else "?") + (" ✨" if shiny else "")
+        if app.config.pinned_species:
+            who += t("pet.pinned")
+        progress, goal = app.game.progress(st.lifetime_tokens), app.game.goal()
+        lines.append(t("pet.companion", who=who, done=compact(progress),
+                       goal=compact(goal)))
+        return "\n".join(lines)
+
+    def _close_hover(self) -> None:
+        if self._hover is not None:
+            try:
+                self._hover.destroy()
+            except tk.TclError:
+                pass
+            self._hover = None
+
+    # ---- right-click menu ------------------------------------------
+
+    def _build_menu(self) -> None:
+        self._popup = tk.Menu(self, tearoff=0, bg=PANEL, fg=FG,
+                              activebackground=ACCENT, activeforeground="#1a1a1a",
+                              bd=0, font=("Segoe UI", 9))
+        self._popup.add_command(label=t("tray.open"), command=self.on_click)
+        self._popup.add_command(label=t("tray.refresh"),
+                                command=self.app.request_refresh)
+        self._popup.add_command(label=t("pet.unpin"), command=self._unpin)
+        self._popup.add_separator()
+        self._popup.add_command(label=t("pet.hide"), command=self._hide_pet)
+        if self.on_quit is not None:
+            self._popup.add_command(label=t("tray.quit"), command=self.on_quit)
+
+    def _menu(self, event) -> None:
+        self._close_hover()
+        # Only offer "unpin" when something is actually pinned.
+        state = "normal" if self.app.config.pinned_species else "disabled"
+        try:
+            self._popup.entryconfigure(2, state=state)
+            self._popup.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._popup.grab_release()
+
+    def _unpin(self) -> None:
+        cfg = self.app.config
+        cfg.pinned_species = 0
+        cfg.save(self.app.config_path)
+        self.render()
+
+    def _hide_pet(self) -> None:
+        cfg = self.app.config
+        cfg.floating_pet = False
+        cfg.save(self.app.config_path)
+        if self.on_open_settings is not None:
+            self.on_open_settings()
+
+    # ---- alerts ----------------------------------------------------
+
+    def say(self, text: str, seconds: int = 8) -> None:
+        """Show a speech bubble above the pet for a while."""
+        self._clear_alert()
+        try:
+            self._alert = _Bubble(self, text, accent=True)
+            self._alert.place_above(self)
+        except tk.TclError:
+            self._alert = None
+            return
+        self._alert_job = self.after(seconds * 1000, self._clear_alert)
+
+    def _clear_alert(self) -> None:
+        if self._alert_job:
+            self.after_cancel(self._alert_job)
+            self._alert_job = None
+        if self._alert is not None:
+            try:
+                self._alert.destroy()
+            except tk.TclError:
+                pass
+            self._alert = None
+
+    def destroy(self) -> None:
+        self._close_hover()
+        self._clear_alert()
+        super().destroy()
+
+    # ---- render ----------------------------------------------------
+
     def render(self) -> None:
         size = self.app.config.pet_size
         if self.sprite.size != size:
@@ -895,3 +1097,5 @@ class FloatingPet(tk.Toplevel):
         self.sprite.show(*self.app.display_sprite())
         # Always the combined figure: the pet is a glance, not a per-agent view.
         self.caption.configure(text=compact(self.app.snapshot.combined.today_tokens))
+        if self._alert is not None:
+            self._alert.place_above(self)

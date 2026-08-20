@@ -12,6 +12,7 @@ import tkinter as tk
 import traceback
 
 from .app import App
+from .i18n import t
 from .tray import Tray
 from .ui import FloatingPet, MainWindow
 
@@ -59,9 +60,18 @@ def main() -> int:
     window = MainWindow(root, app)
     state = {"pet": None, "quitting": False}
 
+    def _window_just_filled() -> bool:
+        """True on the refresh where the 5-hour budget first reaches 100%."""
+        full = app.snapshot.combined.block_percent >= 1.0
+        was, state["block_full"] = state.get("block_full", full), full
+        return full and not was
+
     def sync_pet() -> None:
         if app.config.floating_pet and state["pet"] is None:
-            state["pet"] = FloatingPet(root, app, on_click=window.show)
+            state["pet"] = FloatingPet(
+                root, app, on_click=window.show,
+                on_open_settings=lambda: apply([]), on_quit=quit_app,
+            )
         elif not app.config.floating_pet and state["pet"] is not None:
             state["pet"].destroy()
             state["pet"] = None
@@ -82,8 +92,15 @@ def main() -> int:
 
         surface("window", lambda: window.render(events))
         surface("pet", sync_pet)
-        if state["pet"] is not None:
-            surface("pet", state["pet"].render)
+        pet = state["pet"]
+        if pet is not None:
+            surface("pet", pet.render)
+            # Hatches, evolutions and a filled window are worth interrupting for.
+            note = events[-1] if events else None
+            if note is None and _window_just_filled():
+                note = t("alert.block_full")
+            if note:
+                surface("pet", lambda n=note: pet.say(n))
         surface("tray", tray.refresh)
 
     def on_update(events: list[str]) -> None:

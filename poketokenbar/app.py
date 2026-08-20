@@ -185,6 +185,7 @@ class ScopeStats:
     block_tokens: int = 0
     block_cost: float = 0.0
     block_ends: datetime | None = None
+    week_ends: datetime | None = None
     block_percent: float = 0.0
     week_percent: float = 0.0
     burn_per_hour: float = 0.0
@@ -359,6 +360,7 @@ class App:
                 st.block_ends = primary.resets_at or st.block_ends
             if secondary:
                 st.week_percent = min(secondary.used_percent / 100, 1.0)
+                st.week_ends = secondary.resets_at
             st.eta_key = "eta.official"
             return st
 
