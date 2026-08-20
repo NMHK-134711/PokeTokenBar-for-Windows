@@ -30,12 +30,26 @@ ITEM_SPRITES = {
 
 
 def _fit(src: Image.Image, size: int) -> Image.Image:
-    """Scale an icon into a size x size box, keeping aspect and pixel crispness."""
+    """Letterbox an image into a size x size box. Never crops.
+
+    Gen-V sprite canvases range from about 36px to 110px, so a fixed cell has to
+    shrink the big ones; anything else clips Rayquaza's head off. Scaling policy
+    keeps pixel art readable: integer factors with nearest-neighbour when
+    enlarging, a smooth filter only when shrinking, and native size in between
+    rather than a blurry 1.3x.
+    """
     scale = min(size / src.width, size / src.height)
-    w, h = max(1, round(src.width * scale)), max(1, round(src.height * scale))
-    resample = Image.NEAREST if scale >= 2 else Image.LANCZOS
+    if scale >= 2:
+        factor = int(scale)                      # crisp doubling / tripling
+        w, h, resample = src.width * factor, src.height * factor, Image.NEAREST
+    elif scale >= 1:
+        w, h, resample = src.width, src.height, Image.NEAREST   # leave it alone
+    else:
+        w = max(1, round(src.width * scale))
+        h = max(1, round(src.height * scale))
+        resample = Image.LANCZOS
     out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    resized = src.resize((w, h), resample)
+    resized = src.resize((w, h), resample) if (w, h) != src.size else src
     out.paste(resized, ((size - w) // 2, (size - h) // 2), resized)
     return out
 
@@ -429,19 +443,25 @@ class App:
                     img.seek(img.tell() + 1)
             except EOFError:
                 pass
+            # Trim the margin the whole animation shares, so a small sprite is
+            # not left rattling around inside a mostly-empty canvas. Using one
+            # box for every frame keeps the animation from jittering.
+            box = None
+            for f in frames:
+                b = f.getbbox()
+                if b is None:
+                    continue
+                box = b if box is None else (
+                    min(box[0], b[0]), min(box[1], b[1]),
+                    max(box[2], b[2]), max(box[3], b[3]),
+                )
+            if box:
+                frames = [f.crop(box) for f in frames]
             self._frame_cache[key] = frames
         raw = self._frame_cache[key]
         if not raw:
             return []
-        scale = max(1, size // max(raw[0].width, raw[0].height))
-        out = []
-        for f in raw:
-            w, h = f.width * scale, f.height * scale
-            canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-            resized = f.resize((w, h), Image.NEAREST)
-            canvas.paste(resized, ((size - w) // 2, (size - h) // 2), resized)
-            out.append(canvas)
-        return out
+        return [_fit(f, size) for f in raw]
 
     def egg_frames(self, size: int) -> list[Image.Image]:
         """A simple drawn egg, used before the companion hatches."""
