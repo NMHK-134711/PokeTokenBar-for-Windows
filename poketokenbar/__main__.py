@@ -109,6 +109,7 @@ def main() -> int:
 
     app.subscribe(on_update)
     window.bind("<<SettingsChanged>>", lambda _e: apply([]))
+    window.bind("<<PinChanged>>", lambda _e: apply([]))
 
     tray.start()
     app.start()

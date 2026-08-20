@@ -136,6 +136,9 @@ class Config:
     # it keeps the pet put across restarts and sidesteps display-scaling maths.
     pet_x: int = -1
     pet_y: int = -1
+    # Pin a Pokedex species to the tray icon and floating pet, independently of
+    # the companion being raised. 0 follows the companion.
+    pinned_species: int = 0
     animate_tray: bool = True
 
     @classmethod
@@ -388,6 +391,21 @@ class App:
                 fn(events or [])
             except Exception:
                 pass
+
+    def display_sprite(self) -> tuple[int | None, bool]:
+        """What the tray icon and floating pet should show.
+
+        A pinned species wins over the companion, so the glanceable surfaces
+        stop changing at every hatch and evolution. Home still shows the real
+        companion and its progress.
+        """
+        pinned = self.config.pinned_species
+        if pinned:
+            rec = self.game.pokedex.get(pinned)
+            if rec:
+                return pinned, bool(rec.get("shiny"))
+        c = self.game.companion
+        return c.species_id, c.shiny
 
     # ---- sprites ---------------------------------------------------
 

@@ -67,13 +67,13 @@ class Tray:
         if not app.ready:
             return
 
-        c = app.game.companion
-        key = (c.species_id, c.shiny)
+        species_id, shiny = app.display_sprite()
+        key = (species_id, shiny)
         if key != self._key:
             self._key = key
             frames = (
-                app.frames(c.species_id, c.shiny, ICON_SIZE)
-                if c.species_id is not None
+                app.frames(species_id, shiny, ICON_SIZE)
+                if species_id is not None
                 else app.egg_frames(ICON_SIZE)
             )
             self._frames = frames or [self._placeholder()]
@@ -82,10 +82,10 @@ class Tray:
 
         snap = app.snapshot
         name = t("egg.name")
-        if c.species_id is not None:
-            species = app.dex.species.get(c.species_id)
+        if species_id is not None:
+            species = app.dex.species.get(species_id)
             if species:
-                name = species.name(app.config.language) + (" ✨" if c.shiny else "")
+                name = species.name(app.config.language) + (" ✨" if shiny else "")
         self.icon.title = f"{name}\n{snap.menu_text(app.config)}"
 
     def _animate(self) -> None:

@@ -60,10 +60,17 @@ the current 5-hour block, 7- and 30-day rolling totals, and a burn-rate forecast
 | **Floating pet** | Optional always-on-top companion with the token count under it — drag anywhere, click to open the window |
 | **Home** | Companion, growth bar, today's spend, 5-hour and weekly meters, burn rate |
 | **Pokédex** | Every species you've owned, plus a catch log of everything you've raised |
+| **Pin a favourite** | Click any owned species to pin it to the tray icon and desktop pet |
 | **Bag / Shop** | Rare Candy, Mints, Shiny Charms, and graded eggs, bought with tokens |
 
 Shiny hatches (~1 in 256, better with Shiny Charms) keep their colours through
 every evolution.
+
+**Pinning.** Clicking a species in the Pokédex pins it to the tray icon and the
+desktop pet, so those stop changing at every hatch and evolution. The companion
+carries on being raised underneath — Home still shows it and its progress — and
+clicking the pinned cell again, or the Unpin button, hands the icon back to it.
+Only species you already own can be pinned.
 
 ## Agents it reads
 

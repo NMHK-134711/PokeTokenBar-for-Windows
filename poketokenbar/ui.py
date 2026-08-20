@@ -574,6 +574,24 @@ class MainWindow(tk.Toplevel):
                  font=("Segoe UI", 11, "bold"), anchor="w").pack(fill="x")
         self._rarity_chips(parent, counts)
 
+        if owned:
+            bar = tk.Frame(parent, bg=PANEL)
+            bar.pack(fill="x", pady=(0, 8))
+            pinned = app.config.pinned_species
+            sp = app.dex.species.get(pinned) if pinned else None
+            if sp is not None:
+                tk.Label(bar, text=t("dex.pin.current",
+                                     name=sp.name(app.config.language)),
+                         bg=PANEL, fg=ACCENT, font=("Segoe UI", 8, "bold"),
+                         anchor="w").pack(side="left")
+                tk.Button(bar, text=t("dex.pin.clear"),
+                          command=lambda: self._toggle_pin(pinned),
+                          bg="#2a2d38", fg=MUTED, relief="flat", cursor="hand2",
+                          font=("Segoe UI", 8), padx=8).pack(side="right")
+            else:
+                tk.Label(bar, text=t("dex.pin.hint"), bg=PANEL, fg=MUTED,
+                         font=("Segoe UI", 8), anchor="w").pack(side="left")
+
         if not owned:
             tk.Label(parent, text=t("dex.empty"), bg=PANEL, fg=MUTED,
                      font=("Segoe UI", 9), anchor="w").pack(fill="x")
@@ -603,21 +621,37 @@ class MainWindow(tk.Toplevel):
         for c in range(DEX_COLS):
             grid.columnconfigure(c, weight=1, uniform="dex")
 
+        pinned = app.config.pinned_species
         for n, sid in enumerate(page):
             sp = app.dex.species.get(sid)
             if not sp:
                 continue
             rec = game.pokedex[sid]
             shiny = bool(rec.get("shiny"))
-            cell = tk.Frame(grid, bg="#23262f", highlightthickness=1,
-                            highlightbackground=RARITY_COLOR.get(sp.rarity, MUTED))
+            is_pinned = sid == pinned
+            bg = "#2c2a22" if is_pinned else "#23262f"
+            cell = tk.Frame(grid, bg=bg, highlightthickness=2 if is_pinned else 1,
+                            highlightbackground=ACCENT if is_pinned
+                            else RARITY_COLOR.get(sp.rarity, MUTED))
             cell.grid(row=n // DEX_COLS, column=n % DEX_COLS, padx=3, pady=3, sticky="nsew")
-            self._sprite_label(cell, sid, shiny, DEX_SPRITE, "#23262f").pack(pady=(6, 0))
-            tk.Label(cell, text=f"#{sid}", bg="#23262f", fg=MUTED,
+            self._sprite_label(cell, sid, shiny, DEX_SPRITE, bg).pack(pady=(6, 0))
+            tk.Label(cell, text=("\u2605 " if is_pinned else "") + f"#{sid}", bg=bg,
+                     fg=ACCENT if is_pinned else MUTED,
                      font=("Segoe UI", 7)).pack()
             tk.Label(cell, text=sp.name(app.config.language) + (" \u2728" if shiny else ""),
-                     bg="#23262f", fg=FG, font=("Segoe UI", 8), wraplength=88).pack(
-                pady=(0, 6))
+                     bg=bg, fg=FG, font=("Segoe UI", 8), wraplength=88).pack(pady=(0, 6))
+            # The whole cell is the hit target, children included.
+            for w in (cell, *cell.winfo_children()):
+                w.bind("<Button-1>", lambda _e, i=sid: self._toggle_pin(i))
+                w.configure(cursor="hand2")
+
+    def _toggle_pin(self, species_id: int) -> None:
+        """Pin this species to the tray/pet, or unpin it if already pinned."""
+        cfg = self.app.config
+        cfg.pinned_species = 0 if cfg.pinned_species == species_id else species_id
+        cfg.save(self.app.config_path)
+        self.render([])
+        self.event_generate("<<PinChanged>>")
 
     def _turn_page(self, delta: int) -> None:
         self._dex_page += delta
@@ -854,11 +888,10 @@ class FloatingPet(tk.Toplevel):
         cfg.save(self.app.config_path)
 
     def render(self) -> None:
-        c = self.app.game.companion
         size = self.app.config.pet_size
         if self.sprite.size != size:
             self.sprite.size = size
             self.sprite._key = None
-        self.sprite.show(c.species_id, c.shiny)
+        self.sprite.show(*self.app.display_sprite())
         # Always the combined figure: the pet is a glance, not a per-agent view.
         self.caption.configure(text=compact(self.app.snapshot.combined.today_tokens))
