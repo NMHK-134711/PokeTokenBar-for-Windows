@@ -8,6 +8,9 @@ A from-scratch Windows implementation of the idea behind
 Swift 6, menu-bar only). No Swift code is ported; the data sources and the game
 rules are reimplemented in Python against the same public inputs.
 
+[chattymin/PokeTokenBar](https://github.com/chattymin/PokeTokenBar) 위 깃허브 내용을 윈도우에서도 즐기고싶어 만든 코드입니다. 
+기능과 내용을 윈도우에서 작동하도록 새로 코딩해 구현하였습니다.
+
 UI는 한국어가 기본입니다 (설정에서 English로 바꿀 수 있습니다).
 
 <table>
