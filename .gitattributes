@@ -1,0 +1,6 @@
+# Keep text files LF in the repo; Git checks them out native on Windows.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.gif binary
