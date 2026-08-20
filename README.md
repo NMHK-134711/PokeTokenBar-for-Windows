@@ -87,7 +87,7 @@ every evolution.
 <table>
 <tr>
 <td width="50%"><img src="docs/catch-log.png" alt="Catch log: each Pokemon raised, shown as its full evolution line with rarity and nature"></td>
-<td align="center"><img src="docs/floating-pet.png" alt="The floating desktop pet with its hover readout"></td>
+<td width="100%"><img src="docs/floating-pet.png" alt="The floating desktop pet with its hover readout"></td>
 </tr>
 <tr>
 <td align="center"><b>Catch log</b> — every line you've raised</td>
