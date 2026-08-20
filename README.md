@@ -10,11 +10,29 @@ rules are reimplemented in Python against the same public inputs.
 
 UI는 한국어가 기본입니다 (설정에서 English로 바꿀 수 있습니다).
 
+<table>
+<tr>
+<td width="50%"><img src="docs/home.png" alt="Home tab: a shiny Dragonair being raised, today's tokens and cost, the 5-hour window with a countdown"></td>
+<td width="50%"><img src="docs/pokedex.png" alt="Pokedex: a grid of owned species with rarity-coloured borders and page navigation"></td>
+</tr>
+<tr>
+<td align="center"><b>Home</b> — what you're raising, and what it cost</td>
+<td align="center"><b>Pokédex</b> — 24 per page, rarity-coloured, click to pin</td>
+</tr>
+</table>
+
 ## Install
 
-**Option A — the executable (no Python needed).** Grab
-`dist/PokeTokenBar.exe` and double-click it. Single file, 24 MB, nothing to
-install.
+**Option A — the executable (no Python needed).** Download
+`PokeTokenBar.exe` from the **[latest release](https://github.com/NMHK-134711/PokeTokenBar-for-Windows/releases/latest)** and run
+it. Single file, ~24 MB, no installer, no Python.
+
+Windows will warn you the first time: the executable is unsigned, so SmartScreen
+shows a blue *"Windows protected your PC"* dialog — click **More info → Run
+anyway**. Some antivirus flags PyInstaller one-file builds for the same reason.
+
+`dist/` is not committed, so building from source produces the exe locally
+instead.
 
 **Option B — from source.**
 
@@ -65,6 +83,25 @@ the current 5-hour block, 7- and 30-day rolling totals, and a burn-rate forecast
 
 Shiny hatches (~1 in 256, better with Shiny Charms) keep their colours through
 every evolution.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/catch-log.png" alt="Catch log: each Pokemon raised, shown as its full evolution line with rarity and nature"></td>
+<td width="50%"><img src="docs/floating-pet.png" alt="The floating desktop pet with its hover readout"></td>
+</tr>
+<tr>
+<td align="center"><b>Catch log</b> — every line you've raised</td>
+<td align="center"><b>Desktop pet</b> — hover for the detail</td>
+</tr>
+<tr>
+<td><img src="docs/shop.png" alt="Shop: Rare Candy, Mint, Shiny Charm and three grades of egg, priced in tokens"></td>
+<td><img src="docs/settings.png" alt="Settings: refresh interval, budgets, window reset time, pet size, language and the data folder"></td>
+</tr>
+<tr>
+<td align="center"><b>Shop</b> — your usage is the currency</td>
+<td align="center"><b>Settings</b> — budgets, reset time, language</td>
+</tr>
+</table>
 
 **The floating pet is interactive.** Hovering shows today's tokens and cost, the
 5-hour window with its countdown, the weekly figure, and what you're raising.
@@ -200,10 +237,14 @@ affiliated with, endorsed, or sponsored by Nintendo, Game Freak, Creatures Inc.,
 or The Pokémon Company**. Pokémon and all related names and imagery are
 trademarks of their respective owners. Provided as is, for personal use only.
 
-**No Pokémon artwork is bundled or redistributed.** Species data, Pokémon
+**No Pokémon artwork is bundled into the program.** Species data, Pokémon
 sprites, the egg, and every item icon are fetched at runtime from the public
-[PokéAPI](https://pokeapi.co) and cached under the user's own
-`%LOCALAPPDATA%`; none of it is committed to this repository or compiled into
-the executable. The app icon is a plain egg the program draws itself. PokéAPI
-has no mint sprite in any flavour, so the Mint item borrows the Ability Urge
-icon — also fetched, not shipped.
+[PokéAPI](https://pokeapi.co) and cached under the user's own `%LOCALAPPDATA%`;
+none of it is compiled into the executable or shipped as a source asset. The app
+icon is a plain egg the program draws itself. PokéAPI has no mint sprite in any
+flavour, so the Mint item borrows the Ability Urge icon — also fetched, not
+shipped.
+
+The screenshots under `docs/` are the exception: they necessarily contain
+Pokémon imagery, and are included solely to illustrate what the application
+does.
