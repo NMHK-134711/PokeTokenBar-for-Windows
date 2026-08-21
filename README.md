@@ -111,6 +111,12 @@ every evolution.
 Right-click for open / refresh / unpin / hide / quit. Hatches, evolutions, and a
 filled 5-hour window arrive as a speech bubble above it.
 
+**The weekly window resets** if you tell it when. Weekly limits roll over on a
+fixed weekday and time, so put that into **Weekly reset day and time** in
+Settings (`Thu 04:00`, `금 04:00`, `thu 4` all parse) and the meter counts from
+the last reset and says *This week*. Left empty it totals a rolling 7 days,
+which never resets — accurate, but it will not drop when your real limit does.
+
 **Reset countdowns** sit in the meters — `100% (217.2M · 2h 9m left)`. For Codex
 the reset instant is the one it reports itself; for Claude Code it is the end of
 the current 5-hour block. The weekly figure for Claude Code is a rolling 7 days
@@ -182,8 +188,8 @@ Rare Candy. Nothing here ever reads your credentials.
 
 ## Tuning
 
-Settings lets you change the refresh interval, both budgets, the 5-hour window
-reset time, the floating pet and its size, tooltip contents, and the UI language
+Settings lets you change the refresh interval, both budgets, the 5-hour and
+weekly reset points, the floating pet and its size, tooltip contents, and the UI language
 (한국어 / English). Species names, natures, and rarities all follow the chosen
 language — saves store the English keys, so switching language never invalidates
 your Pokédex.

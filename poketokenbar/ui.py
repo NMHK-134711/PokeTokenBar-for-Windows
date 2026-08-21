@@ -16,7 +16,7 @@ from PIL import ImageTk
 from .app import ALL
 from .game import EGG_FLOORS, RARITY_ORDER, SHOP_PRICES
 from .i18n import nature as tr_nature, rarity as tr_rarity, set_lang, t
-from .usage import compact, parse_anchor
+from .usage import compact, parse_anchor, parse_week_anchor
 
 BG = "#16171d"
 PANEL = "#1e2028"
@@ -129,16 +129,17 @@ def _action(parent, text: str, command, enabled: bool) -> tk.Button:
     )
 
 
-def _meter(parent, label: str) -> tuple[tk.Frame, ttk.Progressbar, tk.Label]:
+def _meter(parent, label: str):
     row = tk.Frame(parent, bg=PANEL)
     head = tk.Frame(row, bg=PANEL)
     head.pack(fill="x")
-    tk.Label(head, text=label, bg=PANEL, fg=MUTED, font=("Segoe UI", 9)).pack(side="left")
+    caption = tk.Label(head, text=label, bg=PANEL, fg=MUTED, font=("Segoe UI", 9))
+    caption.pack(side="left")
     value = tk.Label(head, text="-", bg=PANEL, fg=FG, font=("Segoe UI", 9, "bold"))
     value.pack(side="right")
     bar = ttk.Progressbar(row, maximum=100, style="Poke.Horizontal.TProgressbar")
     bar.pack(fill="x", pady=(3, 0))
-    return row, bar, value
+    return row, bar, value, caption
 
 
 class MainWindow(tk.Toplevel):
@@ -236,9 +237,10 @@ class MainWindow(tk.Toplevel):
 
         meters = tk.Frame(self.home, bg=PANEL)
         meters.pack(fill="x", **pad)
-        row1, self.block_bar, self.block_val = _meter(meters, t("meter.block"))
+        row1, self.block_bar, self.block_val, _ = _meter(meters, t("meter.block"))
         row1.pack(fill="x", pady=(0, 10))
-        row2, self.week_bar, self.week_val = _meter(meters, t("meter.week"))
+        row2, self.week_bar, self.week_val, self.week_cap = _meter(
+            meters, t("meter.week"))
         row2.pack(fill="x", pady=(0, 10))
 
         self.meter_note = tk.Label(self.home, text="", bg=PANEL, fg="#6f7686",
@@ -270,6 +272,7 @@ class MainWindow(tk.Toplevel):
             "block_limit_tokens": tk.StringVar(value=str(cfg.block_limit_tokens)),
             "weekly_limit_tokens": tk.StringVar(value=str(cfg.weekly_limit_tokens)),
             "block_anchor": tk.StringVar(value=cfg.block_anchor),
+            "week_anchor": tk.StringVar(value=cfg.week_anchor),
             "language": tk.StringVar(value=cfg.language),
             "show_cost": tk.BooleanVar(value=cfg.show_cost),
             "show_percent": tk.BooleanVar(value=cfg.show_percent),
@@ -291,6 +294,7 @@ class MainWindow(tk.Toplevel):
         field(t("set.block"), "block_limit_tokens", t("set.block.hint"))
         field(t("set.anchor"), "block_anchor", t("set.anchor.hint"))
         field(t("set.week"), "weekly_limit_tokens")
+        field(t("set.weekreset"), "week_anchor", t("set.weekreset.hint"))
         field(t("set.petsize"), "pet_size")
 
         for key, text in (
@@ -347,6 +351,12 @@ class MainWindow(tk.Toplevel):
             self.settings_msg.configure(text=t("set.anchor.bad"), fg="#e0665f")
             return
         cfg.block_anchor = anchor
+
+        week_at = self.vars["week_anchor"].get().strip()
+        if week_at and parse_week_anchor(week_at) is None:
+            self.settings_msg.configure(text=t("set.weekreset.bad"), fg="#e0665f")
+            return
+        cfg.week_anchor = week_at
 
         cfg.show_cost = self.vars["show_cost"].get()
         cfg.show_percent = self.vars["show_percent"].get()
@@ -446,6 +456,8 @@ class MainWindow(tk.Toplevel):
 
     def _paint_meters(self, st) -> None:
         """Meter captions, including a live countdown to the next reset."""
+        self.week_cap.configure(
+            text=t("meter.week.anchored") if st.week_anchored else t("meter.week"))
         for value, pct, tokens, until in (
             (self.block_val, st.block_percent, st.block_tokens, st.block_ends),
             (self.week_val, st.week_percent, st.week_tokens, st.week_ends),

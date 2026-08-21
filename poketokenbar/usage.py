@@ -16,7 +16,7 @@ from .providers import CLAUDE_PROJECTS, Limit, Source, all_sources
 
 __all__ = [
     "CLAUDE_PROJECTS", "Block", "Entry", "Limit", "UsageReader",
-    "compact", "parse_anchor",
+    "compact", "parse_anchor", "parse_week_anchor", "week_window",
 ]
 
 BLOCK_HOURS = 5
@@ -118,6 +118,11 @@ class UsageReader:
         window = self._since(midnight.astimezone(timezone.utc), provider)
         return sum(e.total for e in window), sum(e.cost for e in window)
 
+    def since(self, start: datetime,
+              provider: str | None = None) -> tuple[int, float]:
+        window = self._since(start, provider)
+        return sum(e.total for e in window), sum(e.cost for e in window)
+
     def rolling(self, days: int, provider: str | None = None) -> tuple[int, float]:
         since = datetime.now(timezone.utc) - timedelta(days=days)
         window = self._since(since, provider)
@@ -208,6 +213,52 @@ def parse_anchor(text: str) -> datetime | None:
         hour=hour, minute=minute, second=0, microsecond=0
     )
     return local.astimezone(timezone.utc)
+
+
+# Weekday names accepted in the weekly anchor, Korean and English.
+_WEEKDAYS = {
+    "mon": 0, "월": 0, "tue": 1, "화": 1, "wed": 2, "수": 2, "thu": 3, "목": 3,
+    "fri": 4, "금": 4, "sat": 5, "토": 5, "sun": 6, "일": 6,
+}
+
+
+def parse_week_anchor(text: str) -> tuple[int, int, int] | None:
+    """Parse "Thu 04:00" / "목 4" into (weekday, hour, minute).
+
+    The weekly limit repeats on a fixed weekday and time, so naming that one
+    boundary is enough to place every window before and after it.
+    """
+    parts = (text or "").replace(",", " ").split()
+    if not parts:
+        return None
+    day = _WEEKDAYS.get(parts[0][:3].lower()) 
+    if day is None:
+        day = _WEEKDAYS.get(parts[0][:1])
+    if day is None:
+        return None
+    hour = minute = 0
+    if len(parts) > 1:
+        clock = parts[1].replace(".", ":")
+        hh, _, mm = clock.partition(":")
+        try:
+            hour, minute = int(hh), int(mm or 0)
+        except ValueError:
+            return None
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    return day, hour, minute
+
+
+def week_window(anchor: tuple[int, int, int],
+                now: datetime | None = None) -> tuple[datetime, datetime]:
+    """The current weekly window (start, next reset) in UTC."""
+    day, hour, minute = anchor
+    local = (now or datetime.now(timezone.utc)).astimezone()
+    start = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    start -= timedelta(days=(start.weekday() - day) % 7)
+    if start > local:                      # today's boundary has not arrived yet
+        start -= timedelta(days=7)
+    return start.astimezone(timezone.utc), (start + timedelta(days=7)).astimezone(timezone.utc)
 
 
 def compact(n: int) -> str:

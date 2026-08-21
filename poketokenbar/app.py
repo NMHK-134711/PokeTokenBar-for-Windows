@@ -15,7 +15,8 @@ from PIL import Image
 from .game import Game, SaveUnreadable
 from .i18n import set_lang, t
 from .pokedata import Pokedex
-from .usage import CLAUDE_PROJECTS, UsageReader, compact, parse_anchor
+from .usage import (CLAUDE_PROJECTS, UsageReader, compact, parse_anchor,
+                    parse_week_anchor, week_window)
 
 ALL = "all"          # scope key for the combined view
 
@@ -141,6 +142,9 @@ class Config:
     # One boundary of your real 5-hour window as "HH:MM" (read it off
     # `/usage`). Empty means derive the windows from activity instead.
     block_anchor: str = ""
+    # Weekday and time the weekly limit resets, e.g. "Thu 04:00". Empty counts a
+    # rolling 7 days instead, which never resets.
+    week_anchor: str = ""
     language: str = "ko"            # "ko" or "en"
     show_cost: bool = True
     show_percent: bool = True
@@ -208,6 +212,7 @@ class ScopeStats:
     # True when the percentages come from the agent's own reported limits
     # rather than a budget the user typed in.
     official: bool = False
+    week_anchored: bool = False        # weekly figure resets, rather than rolls
     priced: bool = True                # False when cost is not estimated
 
     def eta(self) -> str:
@@ -353,7 +358,13 @@ class App:
         r = self.reader
         st = ScopeStats()
         st.today_tokens, st.today_cost = r.today(provider)
-        st.week_tokens, st.week_cost = r.rolling(7, provider)
+        week_at = parse_week_anchor(self.config.week_anchor)
+        if week_at:
+            start, st.week_ends = week_window(week_at, now)
+            st.week_tokens, st.week_cost = r.since(start, provider)
+            st.week_anchored = True
+        else:
+            st.week_tokens, st.week_cost = r.rolling(7, provider)
         st.month_tokens, st.month_cost = r.rolling(30, provider)
         st.lifetime_tokens, st.lifetime_cost = r.lifetime(provider)
         st.priced = st.lifetime_cost > 0 or provider != "codex"

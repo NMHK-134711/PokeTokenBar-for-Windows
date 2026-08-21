@@ -87,6 +87,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "meter.week":       {"ko": "최근 7일",     "en": "Last 7 days"},
     "meter.block.val":  {"ko": "{pct}%  ({tokens}, {ends} 초기화)",
                          "en": "{pct}%  ({tokens}, resets {ends})"},
+    "meter.week.anchored": {"ko": "이번 주", "en": "This week"},
     "meter.block.val2": {"ko": "{pct}%  ({tokens} · {left} 남음)",
                          "en": "{pct}%  ({tokens} · {left} left)"},
     "left.hm":          {"ko": "{h}시간 {m}분",  "en": "{h}h {m}m"},
@@ -201,6 +202,14 @@ STRINGS: dict[str, dict[str, str]] = {
                                "from your activity instead."},
     "set.anchor.bad":   {"ko": "시각 형식이 올바르지 않습니다 (예: 20:00).",
                          "en": "That is not a valid time (e.g. 20:00)."},
+    "set.weekreset":    {"ko": "주간 초기화 요일·시각",
+                         "en": "Weekly reset day and time"},
+    "set.weekreset.hint": {"ko": "예: 목 04:00 — 주간 한도가 초기화되는 요일과 시각입니다. "
+                                 "비우면 '최근 7일' 롤링 집계라 초기화가 없습니다.",
+                           "en": "e.g. Thu 04:00 — when your weekly limit resets. "
+                                 "Leave empty for a rolling 7-day total, which never resets."},
+    "set.weekreset.bad": {"ko": "요일과 시각 형식이 올바르지 않습니다 (예: 목 04:00).",
+                          "en": "That is not a valid day and time (e.g. Thu 04:00)."},
     "set.week":         {"ko": "주간 예산 (토큰)",  "en": "Weekly budget (tokens)"},
     "set.petsize":      {"ko": "데스크톱 펫 크기 (48–192 px)",
                          "en": "Floating pet size (48-192 px)"},
